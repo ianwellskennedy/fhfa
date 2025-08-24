@@ -1,5 +1,3 @@
-# NOTES ----
-
 # Packages ----
 
 # Set the package names to read in
@@ -20,17 +18,11 @@ rm(packages, installed_packages)
 
 # Setting file paths ----
 
-# Note: The files below are not available within this R project. 
-# If anyone other than Ian is running this script download the latest data from this link: https://www.fhfa.gov/data/uniform-appraisal-dataset-aggregate-statistics
-# Make sure to download data for 'Enterprise Single Family Appraisals' for 'States' and the '100 Largest Metro Areas'
+input_state_fha_data_file_path <- "C:/Users/ianwe/Downloads/github/large_input_files/fhfa/uniform_appraisal_dataset/UADAggs_fha_sf_state_v3_3.csv"
+input_metro_fha_data_file_path <- "C:/Users/ianwe/Downloads/github/large_input_files/fhfa/uniform_appraisal_dataset/UADAggs_fha_sf_cbsa_v3_3.csv"
 
-input_state_fha_data_file_path <- "Uniform Appraisal Dataset/inputs/UADAggs_fha_sf_state_v3_3.csv"
-input_metro_fha_data_file_path <- "Uniform Appraisal Dataset/inputs/UADAggs_fha_sf_cbsa_v3_3.csv"
-
-input_state_ent_data_file_path <- "Uniform Appraisal Dataset/inputs/UADAggs_ent_sf_state_v3_3.csv" 
-
-# Change this file path in the future, this file is too large for github to accept!
-input_metro_ent_data_file_path <- "Uniform Appraisal Dataset/inputs/UADAggs_ent_sf_cbsa_v3_3.csv"
+input_state_ent_data_file_path <- "C:/Users/ianwe/Downloads/github/large_input_files/fhfa/uniform_appraisal_dataset/UADAggs_ent_sf_state_v3_3.csv" 
+input_metro_ent_data_file_path <- "C:/Users/ianwe/Downloads/github/large_input_files/fhfa/uniform_appraisal_dataset/UADAggs_ent_sf_cbsa_v3_3.csv"
 
 # Set the output file path
 output_file_path_for_historical_data <- "Uniform Appraisal Dataset/outputs/effective_age_of_enterprise_appraised_sf_homes_2013_to_2023.xlsx"
