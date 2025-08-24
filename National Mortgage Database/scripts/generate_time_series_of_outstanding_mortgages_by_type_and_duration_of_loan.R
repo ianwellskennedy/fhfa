@@ -132,6 +132,7 @@ state_data_historical <- state_data_historical %>%
 class(state_data_historical)
 object.size(state_data_historical)
 
+plot(state_data_historical)
 
 arc.check_product()
 
