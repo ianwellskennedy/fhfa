@@ -24,19 +24,19 @@ fredr_set_key(key = 'c1f7f3d38687246c6d6e5b83898af5a1')
 # Edit the input_file_path each quarter once you have added data to a new quarter's folder
 ## Access the data here if needing to download updated historical data: https://www.fhfa.gov/data/national-mortgage-database-aggregate-statistics 
 ## Download the data for 'Outstanding Residential Mortgage Statistics' covering 'All Geographic Areas'
-input_file_path <- "National Mortgage Database/inputs/1Q25/nmdb-outstanding-mortgage-statistics-all-quarterly.csv"
-state_shapefile_file_path <- "C:/Users/ianwe/Downloads/shapefiles/2023/States/cb_2023_us_state_20m.shp"
+input_file_path <- "National Mortgage Database/inputs/2Q25/nmdb-outstanding-mortgage-statistics-all-quarterly.csv"
+state_shapefile_file_path <- "C:/Users/ianwe/Downloads/shapefiles/2024/States/cb_2024_us_state_20m.shp"
 
 output_filepath_for_cleaned_data <- "National Mortgage Database/outputs/outstanding_mortgages_by_mortgage_rate.xlsx"
 
-output_file_path_for_current_quarter_shapefile <- "National Mortgage Database/outputs/shapefiles/outstanding_mortgages_by_mortgage_rate.shp"
-output_file_path_for_historical_shapefile <- "National Mortgage Database/outputs/shapefiles/outstanding_mortgages_by_mortgage_rate_historical.shp"
-output_file_path_for_quarter_label_shapefile <- "National Mortgage Database/outputs/shapefiles/quarterly_label.shp"
-output_file_path_for_mortgage_label_shapefile <- "National Mortgage Database/outputs/shapefiles/mortgage_label.shp"
+output_file_path_for_current_quarter_shapefile <- "C:/Users/ianwe/Downloads/ArcGIS projects for github/fhfa/shapefiles/outstanding_mortgages/outstanding_mortgages_by_mortgage_rate.shp"
+output_file_path_for_historical_shapefile <- "C:/Users/ianwe/Downloads/ArcGIS projects for github/fhfa/shapefiles/outstanding_mortgages/outstanding_mortgages_by_mortgage_rate_historical.shp"
+output_file_path_for_quarter_label_shapefile <- "C:/Users/ianwe/Downloads/ArcGIS projects for github/fhfa/shapefiles/quarterly_label.shp"
+output_file_path_for_mortgage_label_shapefile <- "C:/Users/ianwe/Downloads/ArcGIS projects for github/fhfa/shapefiles/mortgage_label.shp"
 
-current_quarter <- '2025Q1'
-previous_quarter <- '2024Q4'
-year_ago_quarter <- '2024Q1'
+current_quarter <- '2025Q2'
+previous_quarter <- '2025Q1'
+year_ago_quarter <- '2024Q2'
 
 mortgage_market <- 'All Mortgages'
 
@@ -66,8 +66,18 @@ state_data <- data %>%
   select(-c(GEOLEVEL, FREQUENCY, YEAR:SUPPRESSED, VALUE2))
 
 # Create state_data_[Quarter]' by filtering the data for the following conditions
-state_data_Q1 <- state_data %>%
+state_data_Q2 <- state_data %>%
   filter(PERIOD == current_quarter)
+
+state_data_Q2 <- state_data_Q2 %>%
+  pivot_wider(id_cols = c(SOURCE, GEOID, GEONAME, PERIOD), names_from = SERIESID, values_from = VALUE1) %>%
+  rename(pct_blw_3 = PCT_INTRATE_LT_3, pct_3_4 = PCT_INTRATE_3_4, pct_4_5 = PCT_INTRATE_4_5, pct_5_6 = PCT_INTRATE_5_6, pct_6_plus = PCT_INTRATE_GE_6) %>%
+  mutate(pct_blw_6 = pct_blw_3 + pct_3_4 + pct_4_5 + pct_5_6,
+         pct_blw_5 = pct_blw_3 + pct_3_4 + pct_4_5,
+         pct_blw_4 = pct_blw_3 + pct_3_4)
+
+state_data_Q1 <- state_data %>%
+  filter(PERIOD == previous_quarter)
 
 state_data_Q1 <- state_data_Q1 %>%
   pivot_wider(id_cols = c(SOURCE, GEOID, GEONAME, PERIOD), names_from = SERIESID, values_from = VALUE1) %>%
@@ -76,20 +86,10 @@ state_data_Q1 <- state_data_Q1 %>%
          pct_blw_5 = pct_blw_3 + pct_3_4 + pct_4_5,
          pct_blw_4 = pct_blw_3 + pct_3_4)
 
-state_data_Q4 <- state_data %>%
-  filter(PERIOD == previous_quarter)
-
-state_data_Q4 <- state_data_Q4 %>%
-  pivot_wider(id_cols = c(SOURCE, GEOID, GEONAME, PERIOD), names_from = SERIESID, values_from = VALUE1) %>%
-  rename(pct_blw_3 = PCT_INTRATE_LT_3, pct_3_4 = PCT_INTRATE_3_4, pct_4_5 = PCT_INTRATE_4_5, pct_5_6 = PCT_INTRATE_5_6, pct_6_plus = PCT_INTRATE_GE_6) %>%
-  mutate(pct_blw_6 = pct_blw_3 + pct_3_4 + pct_4_5 + pct_5_6,
-         pct_blw_5 = pct_blw_3 + pct_3_4 + pct_4_5,
-         pct_blw_4 = pct_blw_3 + pct_3_4)
-
-state_data_Q1_24 <- state_data %>%
+state_data_Q2_24 <- state_data %>%
   filter(PERIOD == year_ago_quarter)
 
-state_data_Q1_24 <- state_data_Q1_24 %>%
+state_data_Q2_24 <- state_data_Q2_24 %>%
   pivot_wider(id_cols = c(SOURCE, GEOID, GEONAME, PERIOD), names_from = SERIESID, values_from = VALUE1) %>%
   rename(pct_blw_3 = PCT_INTRATE_LT_3, pct_3_4 = PCT_INTRATE_3_4, pct_4_5 = PCT_INTRATE_4_5, pct_5_6 = PCT_INTRATE_5_6, pct_6_plus = PCT_INTRATE_GE_6) %>%
   mutate(pct_blw_6 = pct_blw_3 + pct_3_4 + pct_4_5 + pct_5_6,
@@ -98,28 +98,27 @@ state_data_Q1_24 <- state_data_Q1_24 %>%
 
 # Create a state-level qoq / yoy difference file ----
 
-state_data_qoq_diff <- state_data_Q1 %>%
+state_data_diff <- state_data_Q2 %>%
+  select(GEONAME, pct_blw_5) %>%
+  rename(q2_pct_blw_5 = pct_blw_5)
+
+state_data_diff_prev_qtr <- state_data_Q1 %>%
   select(GEONAME, pct_blw_5) %>%
   rename(q1_pct_blw_5 = pct_blw_5)
 
-state_data_Q4_qoq_diff <- state_data_Q4 %>%
+state_data_diff_prev_yr <- state_data_Q2_24 %>%
   select(GEONAME, pct_blw_5) %>%
-  rename(q4_pct_blw_5 = pct_blw_5)
-
-state_data_Q1_yoy_diff <- state_data_Q1_24 %>%
-  select(GEONAME, pct_blw_5) %>%
-  rename(q1_24_pct_blw_5 = pct_blw_5)
-
-state_data_diff <- state_data_qoq_diff %>%
-  left_join(state_data_Q4_qoq_diff, by = 'GEONAME') %>%
-  left_join(state_data_Q1_yoy_diff, by = 'GEONAME')
+  rename(q2_24_pct_blw_5 = pct_blw_5)
 
 state_data_diff <- state_data_diff %>%
-  mutate(qoq_diff = q1_pct_blw_5 - q4_pct_blw_5,
-         yoy_diff = q1_pct_blw_5 - q1_24_pct_blw_5)
+  left_join(state_data_diff_prev_qtr, by = 'GEONAME') %>%
+  left_join(state_data_diff_prev_yr, by = 'GEONAME')
 
-rm(state_data_qoq_diff, state_data_Q3_qoq_diff, state_data_Q4_yoy_diff)
+state_data_diff <- state_data_diff %>%
+  mutate(qoq_diff = q2_pct_blw_5 - q1_pct_blw_5,
+         yoy_diff = q2_pct_blw_5 - q2_24_pct_blw_5)
 
+rm(state_data_diff_prev_qtr, state_data_diff_prev_yr)
 
 # Clean historical state data ----
 
@@ -156,53 +155,53 @@ national_data <- data %>%
   filter(GEOLEVEL == 'National' & MARKET == mortgage_market & startsWith(SERIESID, 'PCT_INTRATE_')) %>%
   select(-c(GEOLEVEL, FREQUENCY, YEAR:SUPPRESSED, VALUE2))
 
-national_data_Q1 <- national_data %>%
+national_data_Q2 <- national_data %>%
   filter(PERIOD == current_quarter)
+
+national_data_Q2 <- national_data_Q2 %>%
+  pivot_wider(id_cols = c(SOURCE, GEOID, GEONAME, PERIOD), names_from = SERIESID, values_from = VALUE1) %>%
+  rename(pct_blw_3 = PCT_INTRATE_LT_3, pct_3_4 = PCT_INTRATE_3_4, pct_4_5 = PCT_INTRATE_4_5, pct_5_6 = PCT_INTRATE_5_6, pct_6_plus = PCT_INTRATE_GE_6) %>%
+  mutate(pct_blw_5 = pct_blw_3 + pct_3_4 + pct_4_5)
+
+national_data_Q1 <- national_data %>%
+  filter(PERIOD == previous_quarter)
 
 national_data_Q1 <- national_data_Q1 %>%
   pivot_wider(id_cols = c(SOURCE, GEOID, GEONAME, PERIOD), names_from = SERIESID, values_from = VALUE1) %>%
   rename(pct_blw_3 = PCT_INTRATE_LT_3, pct_3_4 = PCT_INTRATE_3_4, pct_4_5 = PCT_INTRATE_4_5, pct_5_6 = PCT_INTRATE_5_6, pct_6_plus = PCT_INTRATE_GE_6) %>%
   mutate(pct_blw_5 = pct_blw_3 + pct_3_4 + pct_4_5)
 
-national_data_Q4 <- national_data %>%
-  filter(PERIOD == previous_quarter)
-
-national_data_Q4 <- national_data_Q4 %>%
-  pivot_wider(id_cols = c(SOURCE, GEOID, GEONAME, PERIOD), names_from = SERIESID, values_from = VALUE1) %>%
-  rename(pct_blw_3 = PCT_INTRATE_LT_3, pct_3_4 = PCT_INTRATE_3_4, pct_4_5 = PCT_INTRATE_4_5, pct_5_6 = PCT_INTRATE_5_6, pct_6_plus = PCT_INTRATE_GE_6) %>%
-  mutate(pct_blw_5 = pct_blw_3 + pct_3_4 + pct_4_5)
-
-national_data_Q1_24 <- national_data %>%
+national_data_Q2_24 <- national_data %>%
   filter(PERIOD == year_ago_quarter)
 
-national_data_Q1_24 <- national_data_Q1_24 %>%
+national_data_Q2_24 <- national_data_Q2_24 %>%
   pivot_wider(id_cols = c(SOURCE, GEOID, GEONAME, PERIOD), names_from = SERIESID, values_from = VALUE1) %>%
   rename(pct_blw_3 = PCT_INTRATE_LT_3, pct_3_4 = PCT_INTRATE_3_4, pct_4_5 = PCT_INTRATE_4_5, pct_5_6 = PCT_INTRATE_5_6, pct_6_plus = PCT_INTRATE_GE_6) %>%
   mutate(pct_blw_5 = pct_blw_3 + pct_3_4 + pct_4_5)
 
 # Create a national qoq / yoy difference file ----
 
-national_data_qoq_diff <- national_data_Q1 %>%
+national_data_diff <- national_data_Q2 %>%
+  select(GEONAME, pct_blw_5) %>%
+  rename(q2_pct_blw_5 = pct_blw_5)
+
+national_data_diff_prev_qtr <- national_data_Q1 %>%
   select(GEONAME, pct_blw_5) %>%
   rename(q1_pct_blw_5 = pct_blw_5)
 
-national_data_Q4_qoq_diff <- national_data_Q4 %>%
+national_data_diff_prev_yr <- national_data_Q2_24 %>%
   select(GEONAME, pct_blw_5) %>%
-  rename(q4_pct_blw_5 = pct_blw_5)
-
-national_data_Q1_yoy_diff <- national_data_Q1_24 %>%
-  select(GEONAME, pct_blw_5) %>%
-  rename(q1_24_pct_blw_5 = pct_blw_5)
-
-national_data_diff <- national_data_qoq_diff %>%
-  left_join(national_data_Q4_qoq_diff, by = 'GEONAME') %>%
-  left_join(national_data_Q1_yoy_diff, by = 'GEONAME')
+  rename(q2_24_pct_blw_5 = pct_blw_5)
 
 national_data_diff <- national_data_diff %>%
-  mutate(qoq_diff = q1_pct_blw_5 - q4_pct_blw_5,
-         yoy_diff = q1_pct_blw_5 - q1_24_pct_blw_5)
+  left_join(national_data_diff_prev_qtr, by = 'GEONAME') %>%
+  left_join(national_data_diff_prev_yr, by = 'GEONAME')
 
-rm(national_data_qoq_diff, national_data_Q3_qoq_diff, national_data_Q4_yoy_diff)
+national_data_diff <- national_data_diff %>%
+  mutate(qoq_diff = q2_pct_blw_5 - q1_pct_blw_5,
+         yoy_diff = q2_pct_blw_5 - q2_24_pct_blw_5)
+
+rm(national_data_diff_prev_qtr, national_data_diff_prev_yr)
 
 # Clean historical national data ----
 
@@ -225,7 +224,7 @@ write.xlsx(dataset_list, output_filepath_for_cleaned_data)
 
 # Outputting shape files (ignore if not interested in spatial files) ----
 
-state_data_Q1 <- state_data_Q1 %>%
+state_data_Q2 <- state_data_Q2 %>%
   left_join(state_shapefile, by = c('GEONAME' = 'NAME')) %>%
   st_as_sf()
 
@@ -239,7 +238,7 @@ state_data_historical <- st_simplify(state_data_historical, dTolerance = 500, pr
 
 arc.check_product()
 
-arc.write(path = output_file_path_for_current_quarter_shapefile, data = state_data_Q1, overwrite = TRUE, validate = TRUE)
+arc.write(path = output_file_path_for_current_quarter_shapefile, data = state_data_Q2, overwrite = TRUE, validate = TRUE)
 arc.write(path = output_file_path_for_historical_shapefile, data = state_data_historical, overwrite = TRUE, validate = TRUE)
 
 # Make a quarter label for the map (ignore if not updating the historical web map!) ----
