@@ -138,10 +138,53 @@ convert_to_date_char <- function(quarter) {
   sprintf("%s-%02d-01", year, month)
 }
 
-state_data_historical <- state_data_historical %>%
-  mutate(Quarter = gsub("(\\d{4})(Q\\d)", "\\1 \\2", PERIOD))
+# converter (vectorized via a loop, robust for a variety of input formats)
+convert_to_midnight_char <- function(qtr_vec) {
+  s <- as.character(qtr_vec)
+  s <- trimws(s)
+  out <- character(length(s))
+  
+  for (i in seq_along(s)) {
+    si <- s[i]
+    if (is.na(si) || si == "") { out[i] <- NA_character_; next }
+    
+    # 1) If it already looks like a YYYY-MM-DD date, use that date part
+    if (grepl("^\\d{4}-\\d{2}-\\d{2}", si)) {
+      datepart <- regmatches(si, regexpr("\\d{4}-\\d{2}-\\d{2}", si))
+      out[i] <- sprintf("%s 00:00:00", datepart)
+      next
+    }
+    
+    # 2) Extract 4-digit year
+    yr_match <- regexpr("\\d{4}", si)
+    if (yr_match == -1) { out[i] <- NA_character_; next }
+    year <- substr(si, yr_match, yr_match + 3)
+    
+    # 3) Try to find "Q" followed by 1-4 (e.g. Q2, Q 2)
+    q_match <- regexec("Q\\s*([1-4])", si, perl = TRUE)
+    q_parts <- regmatches(si, q_match)[[1]]
+    if (length(q_parts) >= 2 && nchar(q_parts[2]) > 0) {
+      qtr <- q_parts[2]
+    } else {
+      # 4) Fallback: find first digit 1-4 after the year (handles "2025 2" or "2025-2")
+      post <- substring(si, yr_match + 4)
+      qpos <- regexpr("[1-4]", post)
+      if (qpos == -1) { out[i] <- NA_character_; next }
+      qtr <- substr(post, qpos, qpos)
+    }
+    
+    # 5) Compute month from quarter and return formatted string
+    month <- (as.integer(qtr) - 1) * 3 + 1
+    out[i] <- sprintf("%s-%02d-01 00:00:00", year, month)
+  }
+  
+  out
+}
 
-state_data_historical$PERIOD <- sapply(state_data_historical$PERIOD, convert_to_date_char)
+state_data_historical <- state_data_historical %>%
+  mutate(
+    Quarter = gsub("(\\d{4})(Q\\d)", "\\1 \\2", PERIOD),
+    PERIOD = convert_to_midnight_char(PERIOD))
 
 state_data_historical <- state_data_historical %>%
   select(SOURCE:PERIOD, Quarter, everything())
@@ -217,8 +260,8 @@ national_data_historical <- national_data_historical %>%
 
 # Outputting tabluar data ----
 
-dataset_list <- list('State (current)' = state_data_Q1, 'State (hist.)' = state_data_historical, 
-                     'National (current)' = national_data_Q1, 'National (hist.)' = national_data_historical)
+dataset_list <- list('State (current)' = state_data_Q2, 'State (hist.)' = state_data_historical, 
+                     'National (current)' = national_data_Q2, 'National (hist.)' = national_data_historical)
 
 write.xlsx(dataset_list, output_filepath_for_cleaned_data)
 
@@ -232,6 +275,7 @@ state_data_historical <- state_data_historical %>%
   left_join(state_shapefile, by = c('GEONAME' = 'NAME')) %>%
   st_as_sf()
 
+
 object.size(state_data_historical)
 
 state_data_historical <- st_simplify(state_data_historical, dTolerance = 500, preserveTopology = TRUE)
@@ -240,82 +284,3 @@ arc.check_product()
 
 arc.write(path = output_file_path_for_current_quarter_shapefile, data = state_data_Q2, overwrite = TRUE, validate = TRUE)
 arc.write(path = output_file_path_for_historical_shapefile, data = state_data_historical, overwrite = TRUE, validate = TRUE)
-
-# Make a quarter label for the map (ignore if not updating the historical web map!) ----
-
-quarter_label <- state_data_historical %>%
-  filter(GEONAME == 'Louisiana') %>%
-  select(PERIOD, Quarter, geometry)
-
-# Alternatively, buffer the coastline to approximate "coastal" areas
-# Create a buffer of 5 km around the coastline
-coastal_buffer <- quarter_label %>%
-  st_union() %>%                       # Merge polygons into one geometry
-  st_boundary() %>%                    # Extract the boundary
-  st_buffer(dist = 5000)
-
-coastal_islands <- st_intersection(quarter_label, coastal_buffer)
-
-bbox <- st_bbox(coastal_islands)
-
-# Calculate the midpoint latitude
-mid_latitude <- (bbox["ymin"] + bbox["ymax"]) / 2
-
-# Create a horizontal line at the midpoint latitude
-split_line <- st_sfc(
-  st_linestring(rbind(c(bbox["xmin"], mid_latitude), c(bbox["xmax"], mid_latitude))),
-  crs = st_crs(coastal_islands)
-)
-
-# Step 3: Split the shapefile using the horizontal line
-split_parts <- st_split(coastal_islands, split_line) %>% st_collection_extract("POLYGON")
-
-# Step 4: Retain only the southern portion
-quarter_label <- split_parts %>%
-  filter(st_centroid(.) %>% st_coordinates() %>% .[, 2] < mid_latitude) %>%
-  distinct(Quarter, .keep_all = T) %>%
-  st_as_sf()
-
-rm(coastal_islands, coastal_buffer, bbox, split_parts, split_line)
-
-arc.write(path = output_file_path_for_quarter_label_shapefile, data = quarter_label, overwrite = TRUE, validate = TRUE)
-
-# Make a mortgage rate label for the map (ignore if not updating the historical web map!) ----
-
-mortgage_label <- state_data_historical %>%
-  filter(GEONAME == 'New Jersey') %>%
-  select(PERIOD, Quarter, mortgage_rate, geometry)
-
-# Alternatively, buffer the coastline to approximate "coastal" areas
-# Create a buffer of 5 km around the coastline
-coastal_buffer <- mortgage_label %>%
-  st_union() %>%                       # Merge polygons into one geometry
-  st_boundary() %>%                    # Extract the boundary
-  st_buffer(dist = 5000)
-
-coastal_islands <- st_intersection(mortgage_label, coastal_buffer)
-
-bbox <- st_bbox(coastal_islands)
-
-# Calculate the midpoint latitude
-mid_latitude <- (bbox["ymin"] + bbox["ymax"]) / 2
-
-# Create a horizontal line at the midpoint latitude
-split_line <- st_sfc(
-  st_linestring(rbind(c(bbox["xmin"], mid_latitude), c(bbox["xmax"], mid_latitude))),
-  crs = st_crs(coastal_islands)
-)
-
-# Step 3: Split the shapefile using the horizontal line
-split_parts <- st_split(coastal_islands, split_line) %>% st_collection_extract("POLYGON")
-
-# Step 4: Retain only the southern portion
-mortgage_label <- split_parts %>%
-  filter(st_centroid(.) %>% st_coordinates() %>% .[, 2] < mid_latitude) %>%
-  distinct(Quarter, .keep_all = T) %>%
-  st_as_sf()
-
-
-rm(coastal_islands, coastal_buffer, bbox, split_parts, split_line)
-
-arc.write(path = output_file_path_for_mortgage_label_shapefile, data = mortgage_label, overwrite = TRUE, validate = TRUE)
