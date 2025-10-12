@@ -1,7 +1,7 @@
 # Packages ----
 
 # Set the package names to read in
-packages <- c("tidyverse", "sf", "arcgisbinding", "openxlsx")
+packages <- c("tidyverse", "sf", "arcgisbinding", "openxlsx", "spatstat")
 
 # Install packages that are not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -18,208 +18,155 @@ rm(packages, installed_packages)
 
 # Setting file paths ----
 
-input_freddie_mac_data_file_path <- "enterprise_pubd/inputs/2024_pubd_mf_ctf/2024_pubd_mf_ctf_fhlmc.csv"
-input_fannie_mae_data_file_path <- "enterprise_pubd/inputs/2024_pubd_mf_ctf/2024_pubd_mf_ctf_fnma.csv"
-
-input_state_ent_data_file_path <- "C:/Users/ianwe/Downloads/github/large_input_files/fhfa/uniform_appraisal_dataset/UADAggs_ent_sf_state_v3_3.csv" 
-input_metro_ent_data_file_path <- "C:/Users/ianwe/Downloads/github/large_input_files/fhfa/uniform_appraisal_dataset/UADAggs_ent_sf_cbsa_v3_3.csv"
+input_freddie_mac_data_file_path <- "Public Use Datasets/enterprise_pubd/inputs/2024_pudb_mf_ctf/2024_pudb_mf_ctf_fhlmc.csv"
+input_fannie_mae_data_file_path <- "Public Use Datasets/enterprise_pubd/inputs/2024_pudb_mf_ctf/2024_pudb_mf_ctf_fnma.csv"
 
 # Set the output file path
-output_file_path_for_historical_data <- "Uniform Appraisal Dataset/outputs/effective_age_of_enterprise_appraised_sf_homes_2013_to_2023.xlsx"
+output_file_path_for_historical_data <- "enterprise_pubd/outputs/output.xlsx"
 
 # Note: The Uniform Appraisal Dataset utilizes metro definitions from 2020 (i.e. they are the same as in 2018)
-state_shapefile_file_path <- "C:/Users/ianwe/Downloads/shapefiles/2023/States/cb_2023_us_state_20m.shp"
-metro_shapefile_file_path <- "C:/Users/ianwe/Downloads/shapefiles/2023/CBSAs/cb_2023_us_cbsa_500k.shp"
-metro_division_shapefile_file_path <- "C:/Users/ianwe/Downloads/shapefiles/2023/Metro Divisions/cb_2023_us_metdiv_500k.shp"
+state_shp_file_path <- "C:/Users/ianwe/Downloads/shapefiles/2023/States/cb_2023_us_state_20m.shp"
+metro_shp_file_path <- "C:/Users/ianwe/Downloads/shapefiles/2023/CBSAs/cb_2023_us_cbsa_500k.shp"
 
-output_file_path_for_state_ent_shapefile <- "C:/Users/ianwe/Downloads/ArcGIS projects for github/fhfa/shapefiles/effective_age/effective_age_of_all_appraised_homes_by_state_ent.shp"
-output_file_path_for_state_fha_shapefile <- "C:/Users/ianwe/Downloads/ArcGIS projects for github/fhfa/shapefiles/effective_age/effective_age_of_all_appraised_homes_by_state_fha.shp"
-output_file_path_for_state_combined_shapefile <- "C:/Users/ianwe/Downloads/ArcGIS projects for github/fhfa/shapefiles/effective_age/effective_age_of_all_appraised_homes_by_state_both.shp"
+output_file_path_for_state_shp <- "C:/Users/ianwe/Downloads/ArcGIS projects for github/fhfa/shapefiles/.shp"
 
-output_file_path_for_metro_ent_shapefile <- "C:/Users/ianwe/Downloads/ArcGIS projects for github/fhfa/shapefiles/effective_age/effective_age_of_all_appraised_homes_by_metro_ent.shp"
-output_file_path_for_metro_fha_shapefile <- "C:/Users/ianwe/Downloads/ArcGIS projects for github/fhfa/shapefiles/effective_age/effective_age_of_all_appraised_homes_by_metro_fha.shp"
-output_file_path_for_metro_combined_shapefile <- "C:/Users/ianwe/Downloads/ArcGIS projects for github/fhfa/shapefiles/effective_age/effective_age_of_all_appraised_homes_by_metro_both.shp"
+output_file_path_for_metro_shp <- "C:/Users/ianwe/Downloads/ArcGIS projects for github/fhfa/shapefiles/.shp"
 
-latest_quarter_of_data <- 4
-latest_year_of_data <- 2023
+output_file_path_for_county_shp <- "C:/Users/ianwe/Downloads/ArcGIS projects for github/fhfa/shapefiles/.shp"
+
+latest_year_of_data <- 2024
 
 # Reading in data ----
 
-state_data_fha <- read.csv(input_state_fha_data_file_path)
-metro_data_fha <- read.csv(input_metro_fha_data_file_path)
-
-state_data_ent <- read.csv(input_state_ent_data_file_path)
-metro_data_ent <- read.csv(input_metro_ent_data_file_path)
-
-# Creating state and metro level historical data sets ----
-
-# Enterprise
-state_data_historical_ent <- state_data_ent %>%
-  filter(PURPOSE == 'Both' & SERIES == 'Count of Appraisals' & CHARACTERISTIC1 == 'Effective Age' & CATEGORY1 != 'Missing' & GEONAME != 'Puerto Rico' & QUARTER != '5') %>%
-  select(GEONAME:STATEFIPS, YEAR, QUARTER, CATEGORY1, VALUE) %>%
-  rename(count_of_appraisals = VALUE, state = GEONAME, state_abbr = STATEPOSTAL, state_fips_code = STATEFIPS, year = YEAR, quarter = QUARTER)
-
-state_data_historical_ent <- state_data_historical_ent %>%
-  pivot_wider(names_from = 'CATEGORY1', values_from = 'count_of_appraisals', id_cols = c('state':'state_fips_code', 'year', 'quarter'))
-
-metro_data_historical_ent <- metro_data_ent %>%
-  filter(PURPOSE == 'Both' & SERIES == 'Count of Appraisals' & CHARACTERISTIC1 == 'Effective Age' & CATEGORY1 != 'Missing' & QUARTER != '5') %>%
-  select(GEONAME, METRO, YEAR, QUARTER, CATEGORY1, VALUE) %>%
-  rename(count_of_appraisals = VALUE, metro_name = GEONAME, metro_code = METRO, year = YEAR, quarter = QUARTER)
-
-metro_data_historical_ent <- metro_data_historical_ent %>%
-  pivot_wider(names_from = 'CATEGORY1', values_from = 'count_of_appraisals', id_cols = c('metro_name':'quarter'))
-
-# FHA
-state_data_historical_fha <- state_data_fha %>%
-  filter(PURPOSE == 'Both' & SERIES == 'Count of Appraisals' & CHARACTERISTIC1 == 'Effective Age' & CATEGORY1 != 'Missing' & GEONAME != 'Puerto Rico' & QUARTER != '5') %>%
-  select(GEONAME:STATEFIPS, YEAR, QUARTER, CATEGORY1, VALUE) %>%
-  rename(count_of_appraisals = VALUE, state = GEONAME, state_abbr = STATEPOSTAL, state_fips_code = STATEFIPS, year = YEAR, quarter = QUARTER)
-
-state_data_historical_fha <- state_data_historical_fha %>%
-  pivot_wider(names_from = 'CATEGORY1', values_from = 'count_of_appraisals', id_cols = c('state':'state_fips_code', 'year', 'quarter'))
-
-metro_data_historical_fha <- metro_data_fha %>%
-  filter(PURPOSE == 'Both' & SERIES == 'Count of Appraisals' & CHARACTERISTIC1 == 'Effective Age' & CATEGORY1 != 'Missing' & QUARTER != '5') %>%
-  select(GEONAME, METRO, YEAR, QUARTER, CATEGORY1, VALUE) %>%
-  rename(count_of_appraisals = VALUE, metro_name = GEONAME, metro_code = METRO, year = YEAR, quarter = QUARTER)
-
-metro_data_historical_fha <- metro_data_historical_fha %>%
-  pivot_wider(names_from = 'CATEGORY1', values_from = 'count_of_appraisals', id_cols = c('metro_name':'quarter'))
-
-# Joining enterprise and fha data sets ----
-
-# State
-state_data_historical_both <- state_data_historical_ent %>%
-  left_join(state_data_historical_fha, by = c('state', 'state_abbr', 'state_fips_code', 'year', 'quarter'))
-
-state_data_historical_both <- state_data_historical_both %>%
-  mutate(`0 to 5 Years` = `0 to 5 Years.x` + `0 to 5 Years.y`,
-         `6 to 10 years` = `6 to 10 years.x` + `6 to 10 years.y`,
-         `11 to 15 Years` = `11 to 15 Years.x` + `11 to 15 Years.y`,
-         `16 to 20 Years` = `16 to 20 Years.x` + `16 to 20 Years.y`,
-         `More than 20 Years` = `More than 20 Years.x` + `More than 20 Years.y`) %>%
-  select(-matches("\\.")) %>%
-  filter(year >= 2017)
-
-# Metro
-metro_data_historical_both <- metro_data_historical_ent %>%
-  left_join(metro_data_historical_fha, by = c('metro_name', 'metro_code', 'year', 'quarter'))
-
-metro_data_historical_both <- metro_data_historical_both %>%
-  mutate(`0 to 5 Years` = `0 to 5 Years.x` + `0 to 5 Years.y`,
-         `6 to 10 years` = `6 to 10 years.x` + `6 to 10 years.y`,
-         `11 to 15 Years` = `11 to 15 Years.x` + `11 to 15 Years.y`,
-         `16 to 20 Years` = `16 to 20 Years.x` + `16 to 20 Years.y`,
-         `More than 20 Years` = `More than 20 Years.x` + `More than 20 Years.y`) %>%
-  select(-matches("\\.")) %>%
-  filter(year >= 2017)
-
-# Outputting the historical data sets ----
-
-dataset_list <- list('State - Enterprise' = state_data_historical_ent,
-                     'State - FHA' = state_data_historical_fha,
-                     'State - Combined' = state_data_historical_both,
-                     
-                     'Metro - Enterprise' = metro_data_historical_ent,
-                     'Metro - FHA' = metro_data_historical_fha,
-                     'Metro - Combined' = metro_data_historical_both)
-
-write.xlsx(dataset_list, output_file_path_for_historical_data)
+freddie_mac_data <- read.csv(input_freddie_mac_data_file_path)
+fannie_mae_data <- read.csv(input_fannie_mae_data_file_path)
 
 # Reading in shape files ----
 
-state_shapefile <- st_read(state_shapefile_file_path) %>%
+state_shp <- st_read(state_shp_file_path) %>%
   select(STATEFP) %>%
   rename(STATEFIPS = STATEFP) %>%
   mutate(STATEFIPS = as.integer(STATEFIPS))
 
-metro_shapefile <- st_read(metro_shapefile_file_path) %>%
+metro_shp <- st_read(metro_shp_file_path) %>%
   select(NAME, GEOID) %>%
-  rename(METRO = GEOID) %>%
-  mutate(METRO = as.integer(METRO))
+  rename(METRO = GEOID) 
 
-crs <- sf::st_crs(metro_shapefile)
+# Joining files and cleaning joined data ----
 
-metro_division_shapefile <- st_read(metro_division_shapefile_file_path) %>%
-  select(NAME, METDIVFP) %>%
-  rename(METRO = METDIVFP) %>%
-  mutate(METRO = as.integer(METRO))
+joined_data <- freddie_mac_data %>%
+  rbind(fannie_mae_data)
 
-metro_division_shapefile <- st_transform(metro_division_shapefile, crs)
+joined_data <- joined_data %>%
+  select(record_num_mf_ctf, enterprise, tract_2020, county_fips, cbsa_metro_code, state_fips, 
+         purpose_ctf, seller_type_mf_ctf, fed_guarantee_ctf, lien_status, ltv, term_orig, units_num_cat, 
+         rate_orig, upb_orig, property_value, term_prepay_penalty, construct_method) 
 
-metro_shapefile <- metro_shapefile %>%
-  rbind(metro_division_shapefile)
+joined_data <- joined_data %>%
+  mutate(
+    enterprise = case_when(
+      enterprise == 1 ~ 'Freddie Mac',
+      enterprise == 2 ~ 'Fannie Mae',
+      T ~ NA_character_
+    ),
+    tract_2020 = as.character(tract_2020),
+    county_fips = as.character(county_fips),
+    cbsa_metro_code = as.character(cbsa_metro_code),
+    state_fips = as.character(state_fips),
+    purpose_ctf = case_when(
+      purpose_ctf == 1 ~ 'purchase',
+      purpose_ctf == 2 ~ 'refi_non_cash_out',
+      purpose_ctf == 4 ~ 'hi_rehab',
+      purpose_ctf == 7 ~ 'refi_cash_out',
+      purpose_ctf == 9 ~ 'NA_other',
+      T ~ NA_character_
+    ),
+    seller_type_mf_ctf = case_when(
+      seller_type_mf_ctf == 1 ~ 'mortgage_company',
+      seller_type_mf_ctf == 2 ~ 'saif_inst',
+      seller_type_mf_ctf == 3 ~ 'bif_inst',
+      seller_type_mf_ctf == 4 ~ 'credit_union',
+      seller_type_mf_ctf == 5 ~ 'other_or_unknown',
+      T ~ NA_character_
+    ),
+    fed_guarantee_ctf = case_when(
+      fed_guarantee_ctf == 1 ~ 'conventional',
+      fed_guarantee_ctf == 2 ~ 'fha',
+      fed_guarantee_ctf == 3 ~ 'va',
+      fed_guarantee_ctf == 4 ~ 'fsa_rhs',
+      T ~ NA_character_
+    ),
+    lien_status = case_when(
+      lien_status == 1 ~ 'sec_by_first_lien',
+      lien_status == 2 ~ 'sec_by_sub_lien',
+      lien_status == 3 ~ 'not_sec_by_lien',
+      lien_status == 4 ~ NA,
+      T ~ NA_character_
+    ),
+    units_num_cat = case_when(
+      units_num_cat == 1 ~ '5_to_24',
+      units_num_cat == 2 ~ '25_to_50',
+      units_num_cat == 3 ~ '51_to_99',
+      units_num_cat == 4 ~ '100_to_149',
+      units_num_cat == 5 ~ 'over_149',
+      units_num_cat == 9 ~ 'unknown',
+      T ~ NA_character_
+    ),
+    construct_method = case_when(
+      construct_method == 1 ~ 'site_built',
+      construct_method == 2 ~ 'manufactured_mobile',
+      construct_method == 9 ~ NA,
+      T ~ NA_character_
+    ),
+    property_value = case_when(
+      property_value == 999999999 ~ NA_integer_,
+      T ~ property_value
+    ),
+    ,
+    upb_orig = case_when(
+      upb_orig == 999999999 ~ NA_integer_,
+      T ~ upb_orig
+    )
+    )
+
+
+# Creating state and metro level historical data sets ----
+
+state_data <- joined_data %>%
+  group_by(state_fips) %>%
+  summarize(properties = n(),
+            avg_ltv = mean(ltv, na.rm = T),
+            avg_ltv_w = weighted.mean(ltv, w = upb_orig, na.rm = T),
+            med_ltv = median(ltv, na.rm = T),
+            med_ltv_w = weighted.median(ltv, w = upb_orig, na.rm = T),
+            avg_prop_val = mean(property_value, na.rm = T),
+            med_prop_val = median(property_value, na.rm = T)) %>%
+  ungroup() 
+
+cbsa_data <- joined_data %>%
+  group_by(cbsa_metro_code) %>%
+  summarize(properties = n(),
+            avg_ltv = mean(ltv, na.rm = T),
+            avg_ltv_w = weighted.mean(ltv, w = upb_orig, na.rm = T),
+            med_ltv = median(ltv, na.rm = T),
+            med_ltv_w = weighted.median(ltv, w = upb_orig, na.rm = T),
+            avg_prop_val = mean(property_value, na.rm = T),
+            med_prop_val = median(property_value, na.rm = T)) %>%
+  ungroup()
+
+
+# Outputting the historical data sets ----
+
+dataset_list <- list('State' = state_data,
+                     'Metro' = metro_data)
+
+write.xlsx(dataset_list, output_file_path_for_historical_data)
 
 # Creating spatial files ----
-
-clean_state_data_for_spatial <- function(data) {
-  data <- data %>%
-    mutate(month = (quarter - 1) * 3 + 1,
-           date = ymd(paste(year, month, "01", sep = "-")),
-           date = as.character(as.Date(date))) %>%
-    select(-c(month)) %>%
-    mutate(quarter = paste0(year, " Q", quarter)) %>%
-    select(state, state_abbr, state_fips_code, year, quarter, date, everything()) %>%
-    rename(under_5 = `0 to 5 Years`, 
-           six_ten = `6 to 10 years`,
-           ele_fif = `11 to 15 Years`,
-           six_twe = `16 to 20 Years`,
-           over_20 = `More than 20 Years`) %>%
-    mutate(across(under_5:over_20,
-                  ~ . / rowSums(across(c(under_5, six_ten, ele_fif, six_twe, over_20))) * 100,
-                  .names = "{.col}_p" # new column names
-    )
-    ) %>%
-    left_join(state_shapefile, by = c('state_fips_code' = 'STATEFIPS')) %>%
-    st_as_sf()
-  
-}
-
-state_data_historical_ent <- state_data_historical_ent %>%
-  clean_state_data_for_spatial() 
-state_data_historical_fha <- state_data_historical_fha %>%
-  clean_state_data_for_spatial()
-state_data_historical_both <- state_data_historical_both %>%
-  clean_state_data_for_spatial()
-
-clean_metro_data_for_spatial <- function(data) {
-  data <- data %>%
-    mutate(month = (quarter - 1) * 3 + 1,
-           date = ymd(paste(year, month, "01", sep = "-")),
-           date = as.character(as.Date(date))) %>%
-    select(-c(month)) %>%
-    mutate(quarter = paste0(year, " Q", quarter)) %>%
-    select(metro_name, metro_code, year, quarter, date, everything()) %>%
-    rename(under_5 = `0 to 5 Years`, 
-           six_ten = `6 to 10 years`,
-           ele_fif = `11 to 15 Years`,
-           six_twe = `16 to 20 Years`,
-           over_20 = `More than 20 Years`) %>%
-    mutate(across(under_5:over_20,
-                  ~ . / rowSums(across(c(under_5, six_ten, ele_fif, six_twe, over_20))) * 100,
-                  .names = "{.col}_p" # new column names
-    )
-    ) %>%
-    left_join(metro_shapefile, by = c('metro_code' = 'METRO')) %>%
-    st_as_sf()
-}
-
-metro_data_historical_ent <- metro_data_historical_ent %>%
-  clean_metro_data_for_spatial() 
-metro_data_historical_fha <- metro_data_historical_fha %>%
-  clean_metro_data_for_spatial()
-metro_data_historical_both <- metro_data_historical_both %>%
-  clean_metro_data_for_spatial()
 
 # Finalizing spatial data and outputting ----
 
 arc.check_product()
 
-arc.write(state_data_historical_ent, path = output_file_path_for_state_ent_shapefile, overwrite = T, validate = T)
-arc.write(state_data_historical_fha, path = output_file_path_for_state_fha_shapefile, overwrite = T, validate = T)
-arc.write(state_data_historical_both, path = output_file_path_for_state_combined_shapefile, overwrite = T, validate = T)
-
-arc.write(metro_data_historical_ent, path = output_file_path_for_metro_ent_shapefile, overwrite = T, validate = T)
-arc.write(metro_data_historical_fha, path = output_file_path_for_metro_fha_shapefile, overwrite = T, validate = T)
-arc.write(metro_data_historical_both, path = output_file_path_for_metro_combined_shapefile, overwrite = T, validate = T)
+arc.write(metro_data, path = output_file_path_for_state_shp, overwrite = T, validate = T)
+arc.write(state_data, path = output_file_path_for_state_shp, overwrite = T, validate = T)
